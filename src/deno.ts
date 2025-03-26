@@ -10,11 +10,32 @@ Object.assign(writeContext, {
   karabinerConfigFile() {
     return join(this.karabinerConfigDir(), 'karabiner.json')
   },
+  karabinerBackupFile() {
+    return join(
+      this.karabinerConfigDir() ,
+      'karabiner.ts.bak/karabiner.' ,
+      `${Date.now() }`,
+      '.json'
+    )
+  },
   readKarabinerConfig(karabinerJsonPath?: string) {
     return JSON.parse(Deno.readTextFileSync(karabinerJsonPath ?? this.karabinerConfigFile()))
   },
+  getKarabinerConfig(karabinerJsonPath?: string, cleanConfigFile?: boolean) {
+    if (cleanConfigFile) {
+      return this.cleanConfigFile(karabinerJsonPath).then(() =>
+        this.readKarabinerConfig(karabinerJsonPath),
+      )
+    }
+    return this.readKarabinerConfig(karabinerJsonPath)
+  },
   writeKarabinerConfig(json: any, karabinerJsonPath?: string) {
     return Deno.writeTextFile(karabinerJsonPath ?? this.karabinerConfigFile(), json)
+  },
+  cleanConfigFile(karabinerJsonPath?: string) {
+    const configFile = karabinerJsonPath ?? this.karabinerConfigFile()
+    return Deno.copyFile(configFile, this.karabinerBackupFile())
+      .then(() => Deno.remove(configFile))
   },
   readJson(filePath: string) {
     return JSON.parse(Deno.readTextFileSync(filePath))

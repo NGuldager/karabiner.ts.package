@@ -18,14 +18,37 @@ export const writeContext = {
       'karabiner.json',
     )
   },
+  karabinerBackupFile() {
+    return require('node:path').join(
+      this.karabinerConfigDir(),
+      'karabiner.ts.bak/karabiner.',
+      `${Date.now()}`,
+      '.json',
+    )
+  },
   readKarabinerConfig(karabinerJsonPath?: string) {
     return require(karabinerJsonPath ?? this.karabinerConfigFile())
+  },
+  getKarabinerConfig(karabinerJsonPath?: string, cleanConfigFile?: boolean) {
+    if (cleanConfigFile) {
+      return this.cleanConfigFile(karabinerJsonPath).then(() =>
+        this.readKarabinerConfig(karabinerJsonPath),
+      )
+    }
+    return this.readKarabinerConfig(karabinerJsonPath)
   },
   writeKarabinerConfig(json: any, karabinerJsonPath?: string) {
     return require('node:fs/promises').writeFile(
       karabinerJsonPath ?? this.karabinerConfigFile(),
       json,
     )
+  },
+  cleanConfigFile(karabinerJsonPath?: string) {
+    const nodefsPromises = require('node:fs/promises')
+    const configFile = karabinerJsonPath ?? this.karabinerConfigFile()
+    return nodefsPromises
+      .copyFile(configFile, this.karabinerBackupFile())
+      .then(() => nodefsPromises.rm(configFile))
   },
   readJson(filePath: string) {
     return require(filePath)
@@ -40,6 +63,7 @@ export interface WriteTarget {
   dryRun?: boolean
   karabinerJsonPath?: string
   createProfileIfNotExists?: boolean
+  cleanConfigFile?: boolean
 }
 
 /**
@@ -60,13 +84,14 @@ export function writeToProfile(
   if (typeof writeTarget === 'string') {
     writeTarget = { name: writeTarget, dryRun: writeTarget === '--dry-run' }
   }
-  const { name, dryRun, createProfileIfNotExists } = writeTarget
+  const { name, dryRun, createProfileIfNotExists, cleanConfigFile } =
+    writeTarget
   const jsonPath =
     writeTarget.karabinerJsonPath ?? writeContext.karabinerConfigFile()
 
   const config: KarabinerConfig = dryRun
     ? { profiles: [{ name, complex_modifications: { rules: [] } }] }
-    : writeContext.readKarabinerConfig(jsonPath)
+    : writeContext.getKarabinerConfig(jsonPath, cleanConfigFile)
 
   let profile = config?.profiles.find((v) => v.name === name)
   if (!profile && createProfileIfNotExists) {
