@@ -39,6 +39,7 @@ export interface WriteTarget {
   name: string
   dryRun?: boolean
   karabinerJsonPath?: string
+  createProfileIfNotExists?: boolean
 }
 
 /**
@@ -59,7 +60,7 @@ export function writeToProfile(
   if (typeof writeTarget === 'string') {
     writeTarget = { name: writeTarget, dryRun: writeTarget === '--dry-run' }
   }
-  const { name, dryRun } = writeTarget
+  const { name, dryRun, createProfileIfNotExists } = writeTarget
   const jsonPath =
     writeTarget.karabinerJsonPath ?? writeContext.karabinerConfigFile()
 
@@ -67,7 +68,15 @@ export function writeToProfile(
     ? { profiles: [{ name, complex_modifications: { rules: [] } }] }
     : writeContext.readKarabinerConfig(jsonPath)
 
-  const profile = config?.profiles.find((v) => v.name === name)
+  let profile = config?.profiles.find((v) => v.name === name)
+  if (!profile && createProfileIfNotExists) {
+    profile = {
+      name,
+      selected: false,
+      complex_modifications: { parameters: {}, rules: [] },
+    }
+    config.profiles.push(profile)
+  }
   if (!profile)
     exitWithError(`⚠️ Profile ${name} not found in ${jsonPath}.\n
 ℹ️ Please check the profile name in the Karabiner-Elements UI and 
